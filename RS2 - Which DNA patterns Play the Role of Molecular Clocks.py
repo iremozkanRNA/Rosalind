@@ -69,3 +69,42 @@ def motif_enumeration(DNA, k, d):
                            for dna_string in DNA):
                     Patterns.add(neighbor)
     return Patterns
+
+
+# Exercise Break:
+# Compute the entropy of the NF-κB motif matrix (reproduced below). 
+
+from Bio.Seq import Seq
+from Bio import motifs
+import math
+# Step 1: Define the motifs as DNA sequences
+instances = [
+    Seq("TCGGGGGTTTTT"),
+    Seq("CCGGTGACTTAC"),
+    Seq("ACGGGGATTTTC"),
+    Seq("TTGGGGACTTTT"),
+    Seq("AAGGGGACTTCC"),
+    Seq("TTGGGGACTTCC"),
+    Seq("TCGGGTATAACC"),
+    Seq("TCGGGGATTCAT"),
+    Seq("TCGGGGATTCCT"),
+    Seq("TAGGGGAACTAC")
+]
+# Step 2: Create a motif object
+motif = motifs.create(instances)
+# Step 3: Calculate entropy for each column in the motif matrix
+def calculate_entropy(motif):
+    total_entropy = 0
+    for position in range(len(motif.consensus)):
+        counts = [motif.counts[nucleotide][position] for nucleotide in "ACTG"]
+        total = sum(counts)
+        column_entropy = 0
+        for i in counts:
+            if i > 0:
+                frequency = i/total
+                column_entropy -= frequency*math.log2(frequency)
+        total_entropy += column_entropy
+    return total_entropy
+
+entropy = calculate_entropy(motif)
+print(f"total entropy is {entropy}")
