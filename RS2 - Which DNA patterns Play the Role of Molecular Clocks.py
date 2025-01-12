@@ -183,23 +183,207 @@ print(probability)
 # Input: A string Text, an integer k, and a 4 × k matrix Profile.
 # Output: A Profile-most probable k-mer in Text.
 
-def profile_most_probable_kmer(text, k, profile):
-    """Find the Profile-most probable k-mer in a string."""
-    """Identifies the most probable k-mer according to a given profile matrix.
+#profile=[{'A': 0.2, 'C': 0.4, 'G': 0.3, 'T': 0.1},
+#{'A': 0.2, 'C': 0.3, 'G': 0.3, 'T': 0.2},
+#{'A': 0.3, 'C': 0.1, 'G': 0.5, 'T': 0.1},
+#{'A': 0.2, 'C': 0.5, 'G': 0.2, 'T': 0.1},
+#{'A': 0.3, 'C': 0.1, 'G': 0.4, 'T': 0.2}]
 
-    The profile matrix is represented as a list of columns, where the i-th element is a map
-    whose keys are strings ("A", "C", "G", and "T") and whose values represent the probability
-    associated with this symbol in the i-th column of the profile matrix.
+
+def reformat_profile(profile_file):
     """
+    A helper function to reformat the space-delimited profile matrices as dictionaries.
+    Input: profile_file (str) - Path to the file containing the profile matrix.
+    Output: A list of dictionaries where each dictionary represents a column in the profile matrix.
+    """
+    profile_dicts, letters, profile_lists = {}, 'ACGT', []
+    for line_number, line in enumerate(open(profile_file)):
+        letter_probs = line.strip().split(' ')
+        letter = letters[line_number]
+        for column_number, column in enumerate(letter_probs):
+            profile_dicts.setdefault(column_number, {})
+            profile_dicts[column_number][letter] = float(column)
+    for column in sorted(list(profile_dicts.keys())):
+        profile_lists.append(profile_dicts[column])
+    return profile_lists
+
+
+def calculate_kmer_probability(kmer, profile):
+    """
+    Calculate the probability of a k-mer based on a given profile matrix.
+    Input:
+        kmer (str) - The k-mer whose probability is to be calculated.
+        profile (list of dict) - The profile matrix as a list of dictionaries.
+    Output:
+        prob (float) - The calculated probability of the k-mer.
+    """
+    prob = 1.0
+    for i, nucleotide in enumerate(kmer):
+        prob *= profile[i][nucleotide]
+    return prob
+
+
+
+def profile_most_probable_kmer(text, k, profile):
     
     max_prob = -1
-    most_probable_kmer = text[:k]
-    for i in range(len(text) - k +1):
-        kmer = text[i:i+k]
-        prob = 1
-        for j in range(k):
-            prob *= profile[kmer[j]][j]
-            if prob > max_prob:
-                max_prob = prob
-                most_probable_kmer = kmer
+    most_probable_kmer = text[:k]  # Default to the first k-mer in case of ties or no valid probabilities
+
+    # Iterate through all possible k-mers in the string
+    for i in range(len(text) - k + 1):
+        kmer = text[i:i + k]
+        prob = calculate_kmer_probability(kmer, profile)
+        if prob > max_prob:
+            max_prob = prob
+            most_probable_kmer = kmer
+
     return most_probable_kmer
+
+# GreedyMotifSearch() constructs Profile(Motifs) and 
+# selects the Profile-most probable k-mer from Dnai based on this profile matrix.
+
+# Implement GreedyMotifSearch().
+# Input: Integers k and t, followed by a space-separated collection of strings Dna.
+# Output: A collection of strings BestMotifs resulting from 
+# applying GreedyMotifSearch(Dna, k, t). If at any step you find more than one Profile-most 
+# probable k-mer in a given string, use the one occurring first.
+
+
+
+def GreedyMotifSearch(Dna, k, t):
+    """
+    Finds the best motifs in a collection of DNA strings using a greedy approach.
+    
+    Parameters:
+        Dna (list): A list of DNA strings.
+        k (int): The length of the motif.
+        t (int): The number of DNA strings.
+        
+    Returns:
+        list: A list of the best motifs (one from each string in Dna).
+    """
+    # Initialize BestMotifs with the first k-mers from each string
+    BestMotifs = [dna[:k] for dna in Dna]
+    
+    # Iterate over all possible k-mers in the first string
+    for i in range(len(Dna[0]) - k + 1):
+        Motif1 = Dna[0][i:i + k]  # Select a k-mer from the first string
+        Motifs = [Motif1]  # Initialize Motifs with this first k-mer
+        
+        # Build motifs iteratively for the rest of the strings
+        for j in range(1, t):
+            Profile = build_profile(Motifs)
+            Motif_j = profile_most_probable_kmer(Dna[j], k, Profile)
+            Motifs.append(Motif_j)
+        
+        # Update BestMotifs if the new set of motifs has a lower score
+        if score(Motifs) < score(BestMotifs):
+            BestMotifs = Motifs
+    
+    return BestMotifs
+
+
+def build_profile(motifs):
+    """
+    Builds a profile matrix from a list of motifs.
+    
+    Parameters:
+        motifs (list): A list of motifs (strings).
+        
+    Returns:
+        dict: A profile matrix as a dictionary with keys 'A', 'C', 'G', 'T'.
+    """
+    k = len(motifs[0])
+    t = len(motifs)
+    
+    # Initialize profile matrix with zeros
+    profile = {nucleotide: [0] * k for nucleotide in "ACGT"}
+    
+    # Count occurrences of each nucleotide at each position
+    for motif in motifs:
+        for i, nucleotide in enumerate(motif):
+            profile[nucleotide][i] += 1
+    
+    # Convert counts to probabilities by dividing by t (number of motifs)
+    for nucleotide in "ACGT":
+        profile[nucleotide] = [count / t for count in profile[nucleotide]]
+    
+    return profile
+
+
+def profile_most_probable_kmer(dna, k, profile):
+    """
+    Finds the Profile-most probable k-mer in a DNA string.
+    
+    Parameters:
+        dna (str): A DNA string.
+        k (int): The length of the k-mer.
+        profile (dict): The profile matrix as a dictionary.
+        
+    Returns:
+        str: The most probable k-mer based on the profile matrix.
+    """
+    max_prob = -1
+    most_probable_kmer = dna[:k]  # Default to the first k-mer
+    
+    # Iterate through all possible k-mers in the DNA string
+    for i in range(len(dna) - k + 1):
+        kmer = dna[i:i + k]
+        prob = 1
+        
+        # Calculate the probability of this k-mer based on the profile
+        for j, nucleotide in enumerate(kmer):
+            prob *= profile[nucleotide][j]
+        
+        # Update most probable k-mer if this one has a higher probability
+        if prob > max_prob:
+            max_prob = prob
+            most_probable_kmer = kmer
+    
+    return most_probable_kmer
+
+
+def score(motifs):
+    """
+    Calculates the score of a set of motifs by summing mismatches to the consensus sequence.
+    
+    Parameters:
+        motifs (list): A list of motifs (strings).
+        
+    Returns:
+        int: The total number of mismatches across all positions.
+    """
+    consensus = ""
+    k = len(motifs[0])
+    
+    # Build consensus sequence by finding most frequent nucleotide at each position
+    for i in range(k):
+        counts = {nucleotide: 0 for nucleotide in "ACGT"}
+        for motif in motifs:
+            counts[motif[i]] += 1
+        consensus += max(counts, key=counts.get)
+    
+    # Calculate total mismatches between consensus and all motifs
+    total_score = 0
+    for motif in motifs:
+        total_score += sum(1 for i in range(k) if motif[i] != consensus[i])
+    
+    return total_score
+
+
+# Example Usage
+if __name__ == "__main__":
+    Dna = [
+        "AGCTGACCTG",
+        "CCTGAGCTGA",
+        "GACTGAGCTA",
+        "TGACTGACCT"
+    ]
+    
+    k = 3  # Length of motif
+    t = len(Dna)  # Number of DNA strings
+    
+    result = GreedyMotifSearch(Dna, k, t)
+    
+    print("Best Motifs:")
+    print(result)
