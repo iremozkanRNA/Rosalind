@@ -387,3 +387,92 @@ if __name__ == "__main__":
     
     print("Best Motifs:")
     print(result)
+
+# Implement GreedyMotifSearch() with pseudocounts.
+
+# Input: Integers k and t, followed by a space-separated collection of strings Dna.
+# Output: A collection of strings BestMotifs resulting from applying GreedyMotifSearch(Dna, k, t)
+# with pseudocounts. If at any step you find more than one Profile-most probable k-mer in a given string,
+# use the one occurring first.
+
+
+import sys
+
+# Please do not remove package declarations because these are used by the autograder.
+def build_profile(Motifs):
+    k = len(Motifs[0])
+    t = len(Motifs)
+    # Initialize profile with pseudocounts
+    Profile = {nucleotide: [1] * k for nucleotide in "ACTG"}
+    
+    # Count occurrences of each nucleotide at each position
+    for motif in Motifs:
+        for i, nucleotide in enumerate(motif):
+            Profile[nucleotide][i] += 1
+            
+    # Convert counts to probabilities by dividing by (t + 4) (Laplace correction)
+    for nucleotide in "ACTG":
+        Profile[nucleotide] = [count / (t + 4) for count in Profile[nucleotide]]
+        
+    return Profile
+
+def score(Motifs):
+    """Calculates the score of a set of motifs by summing mismatches to the consensus sequence."""
+    k = len(Motifs[0])
+    consensus = ""
+    
+    # Build consensus sequence by finding most frequent nucleotide at each position
+    for i in range(k):
+        counts = {nucleotide: 0 for nucleotide in "ACTG"}  # Initialize counts to 0
+        for motif in Motifs:
+            counts[motif[i]] += 1
+        consensus += max(counts, key=counts.get)
+    
+    # Calculate total mismatches between consensus and all motifs
+    total_score = 0
+    for motif in Motifs:
+        total_score += sum(1 for j in range(k) if motif[j] != consensus[j])
+    
+    return total_score
+
+def profile_most_probable_kmer(Dna, k, Profile):
+    """Finds the Profile-most probable k-mer in a DNA string."""
+    Max_prob = -1
+    most_probable_kmer = Dna[:k]
+    
+    # Iterate through all possible k-mers in the DNA string
+    for i in range(len(Dna) - k + 1):
+        kmer = Dna[i:i+k]
+        Probs = 1
+        
+        # Calculate the probability of this k-mer based on the profile
+        for j, nucleotide in enumerate(kmer):
+            Probs *= Profile[nucleotide][j]
+        
+        # Update most probable k-mer if this one has a higher probability
+        if Probs > Max_prob:
+            Max_prob = Probs
+            most_probable_kmer = kmer
+            
+    return most_probable_kmer
+
+def greedy_motif_search_pseudocounts(Dna, k, t):
+    """Finds the best motifs using a greedy search with pseudocounts."""
+    BestMotifs = [dna[:k] for dna in Dna]  # Initialize BestMotifs with first k-mer from each DNA string
+    
+    # Iterate through all possible k-mers in the first DNA string
+    for i in range(len(Dna[0]) - k + 1):
+        Motif1 = Dna[0][i:i+k]
+        Motifs = [Motif1]
+        
+        # Build motifs iteratively using the profile matrix
+        for j in range(1, t):
+            Profile = build_profile(Motifs)  # Build profile from current motifs
+            Motif_j = profile_most_probable_kmer(Dna[j], k, Profile)  # Find most probable k-mer
+            Motifs.append(Motif_j)  # Append new motif to Motifs
+            
+        # Update BestMotifs if current motifs have a lower score
+        if score(Motifs) < score(BestMotifs):
+            BestMotifs = Motifs
+            
+    return BestMotifs
