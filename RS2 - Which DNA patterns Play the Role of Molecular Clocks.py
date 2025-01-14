@@ -397,6 +397,7 @@ if __name__ == "__main__":
 
 
 import sys
+import random
 
 # Please do not remove package declarations because these are used by the autograder.
 def build_profile(Motifs):
@@ -476,3 +477,71 @@ def greedy_motif_search_pseudocounts(Dna, k, t):
             BestMotifs = Motifs
             
     return BestMotifs
+
+RandomizedMotifSearch(Dna, k, t)
+    randomly select k-mers Motifs = (Motif1, …, Motift) in each string from Dna
+    BestMotifs ← Motifs
+    while forever
+        Profile ← Profile(Motifs)
+        Motifs ← Motifs(Profile, Dna)
+        if Score(Motifs) < Score(BestMotifs)
+            BestMotifs ← Motifs
+        else
+            return BestMotifs
+
+# Randomized Motif Search
+# Implement RandomizedMotifSearch().
+
+# Input: Integers k and t, followed by a space-separated collection of strings Dna.
+# Output: A collection BestMotifs resulting from running RandomizedMotifSearch(Dna, k, t) 1,000 times and
+#  taking the best scoring ending motifs over all these runs of the algorithm. Remember to use pseudocounts
+
+
+def randomized_motif_search(Dna, k, t):
+    # Randomly select k-mers Motifs = (Motif1, …, Motift) in each string from Dna
+    Motifs = [random.choice(dna[i:i+k] for i in range(len(dna) - k +1) for dna in DNA)]
+
+    def randomized_motif_search(Dna, k, t):
+        # Randomly select k-mers Motifs = (Motif1, …, Motift) in each string from Dna
+        Motifs = [random.choice([dna[i:i+k] for i in range(len(dna) - k + 1)]) for dna in Dna]
+        BestMotifs = Motifs
+        
+        while True:
+            Profile = build_profile(BestMotifs)
+            Motifs = [profile_most_probable_kmer(dna, k, Profile) for dna in Dna]
+            
+            if score(Motifs) < score(BestMotifs):
+                BestMotifs = Motifs
+            else:
+                return BestMotifs
+
+    def run_randomized_motif_search(Dna, k, t, iterations=1000):
+        best_motifs = None
+        best_score = float('inf')
+        
+        for _ in range(iterations):
+            motifs = randomized_motif_search(Dna, k, t)
+            current_score = score(motifs)
+            
+            if current_score < best_score:
+                best_score = current_score
+                best_motifs = motifs
+        
+        return best_motifs
+
+    # Example usage
+    if __name__ == "__main__":
+        Dna = [
+            "AGCTGACCTG",
+            "CCTGAGCTGA",
+            "GACTGAGCTA",
+            "TGACTGACCT"
+        ]
+        
+        k = 3  # Length of motif
+        t = len(Dna)  # Number of DNA strings
+        
+        result = run_randomized_motif_search(Dna, k, t)
+        
+        print("Best Motifs:")
+        print(result)
